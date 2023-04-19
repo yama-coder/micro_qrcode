@@ -2,3 +2,4 @@
 *.jpg
 *.png
 .venv
+.venv_win

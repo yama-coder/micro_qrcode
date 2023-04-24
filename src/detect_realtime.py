@@ -1,5 +1,4 @@
 import numpy as np
-import pdb; pdb.set_trace()
 import pyboof as pb
 import cv2
 import os
@@ -16,7 +15,13 @@ def detect_microqr_through_camera():
     while cap.isOpened():
         ret, frame = cap.read()
         if ret:
-            pb_img = pb.ndarray_to_boof(frame)
+            # TODO: Remove temporal file using pb.ndarray_to_boof
+            # The return value of pb.ndarray_to_boof is diffrent from the one of pb.load_single_band
+            # Need to check the source code of pb.ndarray_to_boof
+            cv2.imwrite('tmp.png', frame)
+            pb_img = pb.load_single_band('tmp.png', np.uint8)
+            # pb_img = pb.ndarray_to_boof(frame)
+            
             detector.detect(pb_img)
             for qr in detector.detections:
                 decoded_msg = qr.message

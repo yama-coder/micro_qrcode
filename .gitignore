@@ -3,3 +3,6 @@
 *.png
 .venv
 .venv_winvenv_ubu
+.python-version
+tmp*
+.vscode

@@ -33,6 +33,7 @@ def detect_microqr_in_image(input_path, output_dir):
     output_path = os.path.join(output_dir, os.path.basename(input_path))
     cv2.imwrite(output_path, img)
     
+    
 def detect_microqr_in_dir(input_dir, output_dir):
     """
     input_dir: Path to input directory

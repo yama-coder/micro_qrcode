@@ -11,7 +11,7 @@ def detect_microqr_through_camera():
     """
     detector = pb.FactoryFiducial(np.uint8).microqr()
     
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(1)
     while cap.isOpened():
         ret, frame = cap.read()
         if ret:
@@ -32,7 +32,7 @@ def detect_microqr_through_camera():
                 pts = np.array(qr_bounds, np.int32)
                 cv2.polylines(frame, [pts], True, (0, 255, 0), 2)
                 cv2.putText(frame, decoded_msg, qr_bounds[0], cv2.FONT_HERSHEY_SIMPLEX, 
-                            0.5, (0, 255, 0), 2)
+                            0.5, (255, 0, 0), 2)
             cv2.imshow('frame', frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break

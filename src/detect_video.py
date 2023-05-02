@@ -4,6 +4,8 @@ import os
 import cv2
 import numpy as np
 import pyboof as pb
+from PIL import Image
+from tqdm import tqdm
 
 def detect_microqr_through_video(input_path, mode='v', output_dir='data/resutlts'):
     """Detects Micro QR codes in a video.
@@ -21,35 +23,60 @@ def detect_microqr_through_video(input_path, mode='v', output_dir='data/resutlts
     detector = pb.FactoryFiducial(np.uint8).microqr()    
     cap = cv2.VideoCapture(input_path)
     FPS = cap.get(cv2.CAP_PROP_FPS)
+    FRAMES = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     msec = 0
     frames_to_save = []
     
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            break
-        # TODO: Remove temporal file using pb.ndarray_to_boof
-        # The return value of pb.ndarray_to_boof is diffrent from the one of pb.load_single_band
-        # Need to check the source code of pb.ndarray_to_boof
-        cv2.imwrite('tmp.png', frame)
-        pb_img = pb.load_single_band('tmp.png', np.uint8)
-        
-        detector.detect(pb_img)
-        for qr in detector.detections:
-            decoded_msg = qr.message
-            qr_bounds = qr.bounds.convert_tuple()
-            qr_bounds = list(map(lambda x: (int(x[0]), int(x[1])), qr_bounds))
-            pts = np.array(qr_bounds, np.int32)
-            cv2.polylines(frame, [pts], True, (0, 255, 0), 2)
-            cv2.putText(frame, decoded_msg, qr_bounds[0], cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, (255, 0, 0), 2)
-        if mode == 'v':
-            cv2.imshow('frame', frame)
+    if mode == 's':
+        # TODO: Accelerate the process of Reading video
+        # Bottle neck: saving temporary image files
+        # This is meaningless: ndarray -> PIL Image -> temporal file -> pb_img
+        # Can I convert frame -> BytesIO -> pb_img?
+        for _ in tqdm(range(FRAMES), desc="Reading video"):
+            ret, frame = cap.read()
+            if not ret:
+                break
+            cv2.imwrite('tmp.png', frame)
+            pb_img = pb.load_single_band('tmp.png', np.uint8)
+            frame = detect_in_one_frame(frame, pb_img, detector)
+            frames_to_save.append(frame)
             
+        video_name = os.path.basename(input_path)
+        output_path = os.path.join(output_dir, video_name)
+        size = (frames_to_save[0].shape[1], frames_to_save[0].shape[0])
+        fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+        video_writer = cv2.VideoWriter(
+            output_path, fourcc, FPS, size)
+        for frame in tqdm(frames_to_save, desc="Saving video"):
+            video_writer.write(frame)
+            
+    if mode == 'v':
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
+            # TODO: Remove temporal file using pb.ndarray_to_boof
+            # The return value of pb.ndarray_to_boof is diffrent from the one of pb.load_single_band
+            # Need to check the source code of pb.ndarray_to_boof
+            cv2.imwrite('tmp.png', frame)
+            pb_img = pb.load_single_band('tmp.png', np.uint8)
+            
+            detector.detect(pb_img)
+            for qr in detector.detections:
+                decoded_msg = qr.message
+                qr_bounds = qr.bounds.convert_tuple()
+                qr_bounds = list(map(lambda x: (int(x[0]), int(x[1])), qr_bounds))
+                pts = np.array(qr_bounds, np.int32)
+                cv2.polylines(frame, [pts], True, (0, 255, 0), 2)
+                cv2.putText(frame, decoded_msg, qr_bounds[0], cv2.FONT_HERSHEY_SIMPLEX,
+                            0.5, (0, 0, 255), 2)
+                
             # Press 'f' to forward 1 second
             # Press 'b' to backward 1 second
             # Press 'j' to jump to a specific time
             # Press 'q' to quit
+            cv2.namedWindow('frame', cv2.WINDOW_NORMAL)
+            cv2.imshow('frame', frame)
             key = cv2.waitKey(0)
             if key & 0xFF == ord('f'):
                 msec += 1000
@@ -62,23 +89,21 @@ def detect_microqr_through_video(input_path, mode='v', output_dir='data/resutlts
             elif key & 0xFF == ord('q'):
                 break
             cap.set(cv2.CAP_PROP_POS_MSEC, msec)
-            
-        if mode == 's':
-            frames_to_save.append(frame)
-
-    if mode == 's':
-        video_name = os.path.basename(input_path)
-        output_path = os.path.join(output_dir, video_name)
-        size = (frames_to_save[0].shape[1], frames_to_save[0].shape[0])
-        video_writer = cv2.VideoWriter(
-            output_path, cv2.VideoWriter_fourcc(*'MP4'), FPS, size)
         
-        for frame in frames_to_save:
-            video_writer.write(frame)
-        print(f"Video saved to {output_path}")
-    
     cap.release()
     
+    
+def detect_in_one_frame(frame, pb_img, detector):
+    detector.detect(pb_img)
+    for qr in detector.detections:
+        decoded_msg = qr.message
+        qr_bounds = qr.bounds.convert_tuple()
+        qr_bounds = list(map(lambda x: (int(x[0]), int(x[1])), qr_bounds))
+        pts = np.array(qr_bounds, np.int32)
+        cv2.polylines(frame, [pts], True, (0, 255, 0), 2)
+        cv2.putText(frame, decoded_msg, qr_bounds[0], cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5, (0, 0, 255), 2)
+    return frame
 
 def get_args():
     parser = argparse.ArgumentParser()

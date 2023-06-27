@@ -11,7 +11,7 @@ def detect_microqr_through_camera():
     """
     detector = pb.FactoryFiducial(np.uint8).microqr()
     
-    cap = cv2.VideoCapture(1)
+    cap = cv2.VideoCapture(0)
     while cap.isOpened():
         ret, frame = cap.read()
         if ret:
@@ -38,6 +38,7 @@ def detect_microqr_through_camera():
                 break
         else:
             break
+    cap.realase()
         
 if __name__ == '__main__':
     detect_microqr_through_camera()

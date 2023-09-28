@@ -1,13 +1,14 @@
 import argparse
 import os
 
+import json
 import cv2
 import numpy as np
 import pyboof as pb
 from PIL import Image
 from tqdm import tqdm
 
-def detect_microqr_through_video(input_path, mode='v', output_dir='data/resutlts'):
+def detect_microqr_through_video(input_path, mode='v', output_dir='data/resutlts', alignment_file=None):
     """Detects Micro QR codes in a video.
     Detected bounding boxes are drawn on the video and saved to the output directory.
 
@@ -38,7 +39,7 @@ def detect_microqr_through_video(input_path, mode='v', output_dir='data/resutlts
                 break
             cv2.imwrite('tmp.png', frame)
             pb_img = pb.load_single_band('tmp.png', np.uint8)
-            frame = detect_in_one_frame(frame, pb_img, detector)
+            frame = detect_in_one_frame(frame, pb_img, detector, alignment_file)
             frames_to_save.append(frame)
             
         video_name = os.path.basename(input_path)
@@ -60,17 +61,8 @@ def detect_microqr_through_video(input_path, mode='v', output_dir='data/resutlts
             # Need to check the source code of pb.ndarray_to_boof
             cv2.imwrite('tmp.png', frame)
             pb_img = pb.load_single_band('tmp.png', np.uint8)
+            frame = detect_in_one_frame(frame, pb_img, detector, alignment_file)
             
-            detector.detect(pb_img)
-            for qr in detector.detections:
-                decoded_msg = qr.message
-                qr_bounds = qr.bounds.convert_tuple()
-                qr_bounds = list(map(lambda x: (int(x[0]), int(x[1])), qr_bounds))
-                pts = np.array(qr_bounds, np.int32)
-                cv2.polylines(frame, [pts], True, (0, 255, 0), 2)
-                cv2.putText(frame, decoded_msg, qr_bounds[0], cv2.FONT_HERSHEY_SIMPLEX,
-                            0.5, (0, 0, 255), 2)
-                
             # Press 'f' to forward 1 second
             # Press 'b' to backward 1 second
             # Press 'j' to jump to a specific time
@@ -93,15 +85,22 @@ def detect_microqr_through_video(input_path, mode='v', output_dir='data/resutlts
     cap.release()
     
     
-def detect_in_one_frame(frame, pb_img, detector):
+def detect_in_one_frame(frame, pb_img, detector, alignment_file=None):
     detector.detect(pb_img)
+    if alignment_file is not None:
+        with open(alignment_file, 'r') as f:
+            bne_qr_alignment_dict = json.load(f)
     for qr in detector.detections:
         decoded_msg = qr.message
+        if decoded_msg not in bne_qr_alignment_dict:
+            continue
+        else:
+            qr_label = bne_qr_alignment_dict[decoded_msg]
         qr_bounds = qr.bounds.convert_tuple()
         qr_bounds = list(map(lambda x: (int(x[0]), int(x[1])), qr_bounds))
         pts = np.array(qr_bounds, np.int32)
         cv2.polylines(frame, [pts], True, (0, 255, 0), 2)
-        cv2.putText(frame, decoded_msg, qr_bounds[0], cv2.FONT_HERSHEY_SIMPLEX,
+        cv2.putText(frame, qr_label, qr_bounds[0], cv2.FONT_HERSHEY_SIMPLEX,
                     0.5, (0, 0, 255), 2)
     return frame
 
@@ -111,11 +110,13 @@ def get_args():
     parser.add_argument('-m', '--mode', type=str, choices=['v', 's'],
                         default='v', help='v for viewing the video while detecting, s for saving the video while detecting')
     parser.add_argument('-o', '--output_dir', type=str, default='data/results')
+    parser.add_argument('--alignment_file', type=str, default=None,
+                        help='Path to alignment file of Micro QR code labels')
     
     return parser.parse_args()
 
 
 if __name__ == '__main__':
     args = get_args()
-    detect_microqr_through_video(args.input_path, args.mode, args.output_dir)
+    detect_microqr_through_video(args.input_path, args.mode, args.output_dir, args.alignment_file)
     print('Done')

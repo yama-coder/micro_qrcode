@@ -28,7 +28,7 @@ def detect_microqr_in_image(input_path, output_dir):
        pts = np.array(qr_bounds, np.int32)
        cv2.polylines(img, [pts], True, (0, 255, 0), 2)
        cv2.putText(img, decoded_msg, qr_bounds[0], cv2.FONT_HERSHEY_SIMPLEX, 
-                   0.5, (0, 255, 0), 2)
+                   1, (0, 0, 255), 2)
     
     output_path = os.path.join(output_dir, os.path.basename(input_path))
     cv2.imwrite(output_path, img)

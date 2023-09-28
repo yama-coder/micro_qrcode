@@ -26,8 +26,8 @@ $ bash scritps/save_video.sh INPUT_VIDEO_PATH OUTPUT_VIDEO_PATH QR_ALIGNMENT_FIL
 - QR_ALIGNMENT_FILE: path to the json file where the alignment between QR codes number and their labels are written
 
 #### Detect Micro QR codes in a video (View mode)
-You can detect QR codes in a video and check the detected result in frame (not save).
-If you execute view mode, you should do it on your local machine.
+You can detect QR codes in a video and check the detected result in frame (not save).\
+__If you execute view mode, you should do it on your local machine.__
 ```
 $ bash scritps/view_video.sh INPUT_VIDEO_PATH QR_ALIGNMENT_FILE
 ```
